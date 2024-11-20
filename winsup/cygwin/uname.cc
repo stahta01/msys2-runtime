@@ -51,14 +51,34 @@ uname_x (struct utsname *name)
     {
       char buf[NI_MAXHOST + 1] ATTRIBUTE_NONSTRING;
       char *snp = strstr (cygwin_version.dll_build_date, "SNP");
+      int n;
 
       memset (name, 0, sizeof (*name));
       /* sysname */
       const char* sysname = get_sysname();
-      __small_sprintf (name->sysname, "%s_%s-%u%s",
-		       sysname,
-		       wincap.osname (), wincap.build_number (),
-		       wincap.is_wow64 () ? "-WOW64" : "");
+      n = __small_sprintf (name->sysname, "%s_%s-%u",
+			   sysname,
+			   wincap.osname (), wincap.build_number ());
+      if (wincap.host_machine () != wincap.cygwin_machine ())
+	{
+	  switch (wincap.host_machine ())
+	    {
+	      case IMAGE_FILE_MACHINE_AMD64:
+		/* special case for backwards compatibility */
+		if (wincap.cygwin_machine () == IMAGE_FILE_MACHINE_I386)
+		  n = stpcpy (name->sysname + n, "-WOW64") - name->sysname;
+		else
+		  n = stpcpy (name->sysname + n, "-x64") - name->sysname;
+		break;
+	      case IMAGE_FILE_MACHINE_ARM64:
+		n = stpcpy (name->sysname + n, "-ARM64") - name->sysname;
+		break;
+	      default:
+		n += __small_sprintf (name->sysname + n, "-%04y",
+				      (int) wincap.host_machine ());
+		break;
+	    }
+	}
       /* nodename */
       memset (buf, 0, sizeof buf);
       cygwin_gethostname (buf, sizeof buf - 1);
