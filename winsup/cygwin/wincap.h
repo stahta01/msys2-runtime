@@ -57,6 +57,8 @@ class wincapc
   char			osnam[40];
   ULONG_PTR		wow64;
   void			*caps;
+  USHORT		host_mach;
+  USHORT		cygwin_mach;
 
 public:
   void init ();
@@ -76,6 +78,8 @@ public:
   const char *osname () const { return osnam; }
   const DWORD build_number () const { return version.dwBuildNumber; }
   const bool is_wow64 () const { return !!wow64; }
+  const USHORT host_machine () const { return host_mach; }
+  const USHORT cygwin_machine () const { return cygwin_mach; }
 
 #define IMPLEMENT(cap) cap() const { return ((wincaps *) this->caps)->cap; }
 

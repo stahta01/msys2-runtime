@@ -438,9 +438,16 @@ wincaps wincap_10_1903 __attribute__((section (".cygwin_dll_common"), shared)) =
 
 wincapc wincap __attribute__((section (".cygwin_dll_common"), shared));
 
+/* __asm__ to work around i386 leading underscore */
+extern IMAGE_DOS_HEADER
+__image_base__ __asm__ ("__image_base__");
+
 void
 wincapc::init ()
 {
+  PIMAGE_NT_HEADERS ntheader;
+  USHORT emul_mach;
+
   if (caps)
     return;		// already initialized
 
@@ -512,4 +519,25 @@ wincapc::init ()
 
   __small_sprintf (osnam, "NT-%d.%d", version.dwMajorVersion,
 		   version.dwMinorVersion);
+
+  if (!IsWow64Process2 (GetCurrentProcess (), &emul_mach, &host_mach))
+    {
+      /* If IsWow64Process2 succeeded, it filled in host_mach.  Assume the only
+	 way it fails for the current process is that we're running on an OS
+	 version where it's not implemented yet.  As such, the only two
+	 realistic options for host_mach are AMD64 or I386 */
+#if defined (__x86_64__)
+      host_mach = IMAGE_FILE_MACHINE_AMD64;
+#elif defined (__i386__)
+      host_mach = wow64 ? IMAGE_FILE_MACHINE_AMD64 : IMAGE_FILE_MACHINE_I386;
+#else
+      /* this should not happen */
+      assert (0 && "IsWow64Process2 failed on non-i386/x86_64");
+      host_mach = IMAGE_FILE_MACHINE_UNKNOWN;
+#endif
+    }
+
+  ntheader = (PIMAGE_NT_HEADERS)((LPBYTE) &__image_base__
+				 + __image_base__.e_lfanew);
+  cygwin_mach = ntheader->FileHeader.Machine;
 }
